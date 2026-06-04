@@ -24,7 +24,7 @@ from urllib.parse import urlparse
 
 import aiohttp
 
-logger = logging.getLogger(__name__)
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -39,13 +39,11 @@ class ImmichError(Exception):
 
 
 class ImmichClient:
-    def __init__(self, share_url: str, session: Optional[aiohttp.ClientSession] = None):
+    def __init__(self, share_url: str, session: aiohttp.ClientSession):
         self._share_url = share_url
         self._share_key = self._extract_share_key(share_url)
         self._base_url = self._extract_base_url(share_url)
         self._session = session
-        self._owned_session = session is None
-        # Lazy-loaded on first use
         self._album_id: Optional[str] = None
 
     @staticmethod
@@ -70,27 +68,14 @@ class ImmichClient:
     def share_key(self) -> str:
         return self._share_key
 
-    async def _ensure_session(self) -> aiohttp.ClientSession:
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(
-                timeout=aiohttp.ClientTimeout(total=60)
-            )
-            self._owned_session = True
-        return self._session
-
-    async def close(self) -> None:
-        if self._owned_session and self._session and not self._session.closed:
-            await self._session.close()
-            self._session = None
-
     async def _get(self, path: str, **params) -> dict:
-        session = await self._ensure_session()
         url = f"{self._base_url}{path}"
         if "key" not in params:
             params["key"] = self._share_key
         try:
-            async with session.get(url, params=params) as resp:
-                if resp.status == 401 or resp.status == 403:
+            async with self._session.get(url, params=params,
+                                          timeout=aiohttp.ClientTimeout(total=60)) as resp:
+                if resp.status in (401, 403):
                     raise ImmichError(
                         f"Immich auth failed ({resp.status}). "
                         "Share key may be invalid, expired, or the album no longer "
@@ -101,36 +86,23 @@ class ImmichClient:
                 if resp.status >= 400:
                     body = await resp.text()
                     raise ImmichError(f"Immich API error {resp.status}: {body[:200]}")
-                # Some endpoints return arrays - handle that
                 ctype = resp.headers.get("Content-Type", "")
                 if "application/json" in ctype:
                     return await resp.json()
-                # Non-JSON response - shouldn't happen for our GETs
                 text = await resp.text()
                 raise ImmichError(f"Expected JSON, got {ctype}: {text[:200]}")
         except aiohttp.ClientError as e:
             raise ImmichError(f"Immich request failed: {e}") from e
 
     async def get_shared_link_info(self) -> dict:
-        """
-        Fetch the share-link metadata via `/api/shared-links/me`.
-
-        Returns the full response dict. Of interest:
-          - type: "ALBUM" | "INDIVIDUAL" | ...
-          - album.id: the bound album UUID (if type=ALBUM)
-        """
+        """Fetch the share-link metadata via `/api/shared-links/me`."""
         data = await self._get("/api/shared-links/me")
         if not isinstance(data, dict):
             raise ImmichError("Unexpected response from /api/shared-links/me")
         return data
 
     async def get_album_id(self) -> str:
-        """
-        Resolve and cache the album UUID for this share.
-
-        For ALBUM-type shares: returns the bound album's UUID.
-        For INDIVIDUAL-type shares (assets only): there is no album - raise.
-        """
+        """Resolve and cache the album UUID for this share."""
         if self._album_id is not None:
             return self._album_id
         info = await self.get_shared_link_info()
@@ -138,7 +110,7 @@ class ImmichClient:
         if share_type != "ALBUM":
             raise ImmichError(
                 f"Share link type is {share_type!r}, not 'ALBUM'. "
-                "This add-on requires an ALBUM-type share. "
+                "This integration requires an ALBUM-type share. "
                 "Create a new share with 'Create share for album' enabled in Immich."
             )
         album = info.get("album") or {}
@@ -146,7 +118,7 @@ class ImmichClient:
         if not album_id:
             raise ImmichError("Share response missing 'album.id'")
         self._album_id = album_id
-        logger.info("Resolved album ID: %s (share type: %s)", album_id, share_type)
+        _LOGGER.info("Resolved album ID: %s (share type: %s)", album_id, share_type)
         return album_id
 
     async def list_assets(self, album_id: Optional[str] = None) -> List[ImmichAsset]:
@@ -163,23 +135,22 @@ class ImmichClient:
         assets_raw = data.get("assets", [])
         result: List[ImmichAsset] = []
         for a in assets_raw:
-            # Filter to images only - skip videos (not part of art rotation)
             if a.get("type") == "IMAGE" or a.get("isImage"):
                 result.append(ImmichAsset(
                     id=a["id"],
                     file_name=a.get("originalFileName", f"{a['id']}.jpg"),
                     type="IMAGE",
                 ))
-        logger.info("Found %d image assets in album %s", len(result), album_id)
+        _LOGGER.info("Found %d image assets in album %s", len(result), album_id)
         return result
 
     async def download_original(self, asset_id: str) -> bytes:
         """Download the original (unmodified) image bytes for an asset."""
-        session = await self._ensure_session()
         url = f"{self._base_url}/api/assets/{asset_id}/original"
         params = {"key": self._share_key}
         try:
-            async with session.get(url, params=params) as resp:
+            async with self._session.get(url, params=params,
+                                          timeout=aiohttp.ClientTimeout(total=120)) as resp:
                 if resp.status >= 400:
                     body = await resp.text()
                     raise ImmichError(

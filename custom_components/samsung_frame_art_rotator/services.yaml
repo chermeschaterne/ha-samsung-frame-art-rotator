@@ -1,0 +1,11 @@
+rotate:
+  name: Rotate now
+  description: Manually trigger a rotation of the Frame art.
+
+wake:
+  name: Wake frame
+  description: Send Wake-on-LAN and enable art mode.
+
+standby:
+  name: Standby
+  description: Disable art mode (panel off, but API stays responsive).

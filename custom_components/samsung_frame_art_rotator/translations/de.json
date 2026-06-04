@@ -1,0 +1,40 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Samsung Frame Art Rotator",
+        "description": "Set up the Immich share and Samsung Frame connection.",
+        "data": {
+          "immich_share_url": "Immich-Freigabe-URL",
+          "frame_host": "IP-Adresse des Samsung Frame",
+          "frame_mac": "MAC-Adresse des Samsung Frame (für Wake-on-LAN)",
+          "client_name": "Stabiler Client-Identifier (nach erstem Connect nicht mehr ändern)",
+          "matte": "Rahmen-/Matte-Stil"
+        }
+      }
+    },
+    "error": {
+      "invalid_immich_share": "Immich-Freigabe nicht erreichbar. Prüfe die URL und ob die Freigabe noch aktiv ist.",
+      "unknown": "Unerwarteter Fehler. Siehe Home-Assistant-Logs."
+    },
+    "abort": {
+      "already_configured": "Diese Kombination aus Freigabe-URL und Frame-IP ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Samsung Frame Art Rotator – Einstellungen",
+        "description": "Laufzeit-Einstellungen (werden ohne Neu-Installation übernommen).",
+        "data": {
+          "enabled": "Hauptschalter — ausschalten pausiert alle Rotationen",
+          "rotation_time": "Tägliche Rotations-Uhrzeit (HH:MM)",
+          "brightness_level": "Helligkeitsstufe (1 = sehr dunkel, 10 = max)",
+          "disable_sensor": "Ambient-Lichtsensor des TVs deaktivieren (Helligkeit bleibt fix)",
+          "motion_sensor": "Optional: Entity-ID eines Bewegungssensors (z.B. binary_sensor.wohnzimmer_bewegung)",
+          "motion_timeout_minutes": "Minuten ohne Bewegung, nach denen der TV in Standby geht"
+        }
+      }
+    }
+  }
+}

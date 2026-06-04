@@ -1,0 +1,40 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Samsung Frame Art Rotator",
+        "description": "Set up the Immich share and Samsung Frame connection.",
+        "data": {
+          "immich_share_url": "Immich share URL",
+          "frame_host": "Samsung Frame IP address",
+          "frame_mac": "Samsung Frame MAC address (for Wake-on-LAN)",
+          "client_name": "Stable client identifier (do not change after first connection)",
+          "matte": "Frame/matte style"
+        }
+      }
+    },
+    "error": {
+      "invalid_immich_share": "Could not reach the Immich share. Check the URL and that the share is still active.",
+      "unknown": "Unexpected error. See Home Assistant logs for details."
+    },
+    "abort": {
+      "already_configured": "This share URL + frame host is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Samsung Frame Art Rotator settings",
+        "description": "Runtime settings (applied without re-creating the integration).",
+        "data": {
+          "enabled": "Master switch — turn off to pause all rotations",
+          "rotation_time": "Daily rotation time (HH:MM)",
+          "brightness_level": "Brightness level (1 = very dim, 10 = max)",
+          "disable_sensor": "Disable the TV's ambient-light sensor (keeps brightness fixed)",
+          "motion_sensor": "Optional motion-sensor entity_id (e.g. binary_sensor.living_room_motion)",
+          "motion_timeout_minutes": "Minutes without motion before the TV goes into standby"
+        }
+      }
+    }
+  }
+}
