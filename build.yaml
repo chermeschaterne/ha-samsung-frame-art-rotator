@@ -1,0 +1,13 @@
+build_from:
+  aarch64: ghcr.io/hassio-addons/base:15.0.7
+  amd64: ghcr.io/hassio-addons/base:15.0.7
+  armv7: ghcr.io/hassio-addons/base:15.0.7
+  armhf: ghcr.io/hassio-addons/base:15.0.7
+  i386: ghcr.io/hassio-addons/base:15.0.7
+labels:
+  org.opencontainers.image.title: "Samsung Frame Art Rotator"
+  org.opencontainers.image.description: "Daily rotation of Immich album images on Samsung Frame TV"
+  org.opencontainers.image.source: "https://github.com/chermeschaterne/ha-samsung-frame-art-rotator"
+  org.opencontainers.image.licenses: "MIT"
+args:
+  TEMPIO_VERSION: "2024.01.0"

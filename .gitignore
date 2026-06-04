@@ -1,0 +1,33 @@
+# Secrets
+*.env
+.env
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# HA Add-on
+data/
+*.log
+
+# Test outputs
+test_outputs/
