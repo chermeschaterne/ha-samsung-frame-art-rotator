@@ -4,14 +4,15 @@ Immich API client.
 Uses Immich's public share API to list album assets and download originals.
 No user account / API key required.
 
-Share URL format: https://<host>/share/<shareKey>
-
 API endpoints used (all use the share key as `?key=<shareKey>`):
-  GET /api/albums/<albumId>            - album metadata (incl. asset IDs)
+  GET /api/shared-links/me             - share-link info (incl. album.id)
+  GET /api/albums/<albumId>            - album metadata + asset list
   GET /api/assets/<assetId>/original   - original image bytes
+  GET /api/assets/<assetId>/thumbnail  - thumbnail bytes
 
-NOTE: The album ID is not in the share URL - we get it by listing
-shared albums via GET /api/albums?key=<shareKey>.
+NOTE: The album ID is not in the share URL. It is obtained dynamically via
+`/api/shared-links/me`, which returns the share metadata including the
+bound album's UUID.
 """
 from __future__ import annotations
 
@@ -92,62 +93,77 @@ class ImmichClient:
                 if resp.status == 401 or resp.status == 403:
                     raise ImmichError(
                         f"Immich auth failed ({resp.status}). "
-                        "Share key may be invalid or expired."
+                        "Share key may be invalid, expired, or the album no longer "
+                        "matches this share. Try regenerating the share link in Immich."
                     )
                 if resp.status == 404:
                     raise ImmichError(f"Immich resource not found: {path}")
                 if resp.status >= 400:
                     body = await resp.text()
                     raise ImmichError(f"Immich API error {resp.status}: {body[:200]}")
-                return await resp.json()
+                # Some endpoints return arrays - handle that
+                ctype = resp.headers.get("Content-Type", "")
+                if "application/json" in ctype:
+                    return await resp.json()
+                # Non-JSON response - shouldn't happen for our GETs
+                text = await resp.text()
+                raise ImmichError(f"Expected JSON, got {ctype}: {text[:200]}")
         except aiohttp.ClientError as e:
             raise ImmichError(f"Immich request failed: {e}") from e
 
-    async def list_albums(self) -> List[dict]:
-        """List all shared albums accessible via this share key."""
-        data = await self._get("/api/albums")
-        if isinstance(data, list):
-            return data
-        if isinstance(data, dict) and "albums" in data:
-            return data["albums"]
-        # Some Immich versions wrap differently
-        if isinstance(data, dict):
-            return [data]
-        return []
+    async def get_shared_link_info(self) -> dict:
+        """
+        Fetch the share-link metadata via `/api/shared-links/me`.
 
-    async def get_first_album_id(self) -> str:
-        """Get the first (or only) shared album ID for this share key."""
+        Returns the full response dict. Of interest:
+          - type: "ALBUM" | "INDIVIDUAL" | ...
+          - album.id: the bound album UUID (if type=ALBUM)
+        """
+        data = await self._get("/api/shared-links/me")
+        if not isinstance(data, dict):
+            raise ImmichError("Unexpected response from /api/shared-links/me")
+        return data
+
+    async def get_album_id(self) -> str:
+        """
+        Resolve and cache the album UUID for this share.
+
+        For ALBUM-type shares: returns the bound album's UUID.
+        For INDIVIDUAL-type shares (assets only): there is no album - raise.
+        """
         if self._album_id is not None:
             return self._album_id
-        albums = await self.list_albums()
-        if not albums:
+        info = await self.get_shared_link_info()
+        share_type = info.get("type")
+        if share_type != "ALBUM":
             raise ImmichError(
-                f"No shared albums found for share key. "
-                f"Check that the Immich share URL is correct and the album is still shared."
+                f"Share link type is {share_type!r}, not 'ALBUM'. "
+                "This add-on requires an ALBUM-type share. "
+                "Create a new share with 'Create share for album' enabled in Immich."
             )
-        # If multiple, use the first one (the share URL was for a specific album)
-        album_id = albums[0].get("id")
+        album = info.get("album") or {}
+        album_id = album.get("id")
         if not album_id:
-            raise ImmichError("Immich album response missing 'id' field")
+            raise ImmichError("Share response missing 'album.id'")
         self._album_id = album_id
-        logger.info("Resolved album ID: %s", album_id)
+        logger.info("Resolved album ID: %s (share type: %s)", album_id, share_type)
         return album_id
 
-    async def get_album_info(self, album_id: Optional[str] = None) -> dict:
-        if album_id is None:
-            album_id = await self.get_first_album_id()
-        return await self._get(f"/api/albums/{album_id}")
-
     async def list_assets(self, album_id: Optional[str] = None) -> List[ImmichAsset]:
-        """List all image assets in the album."""
+        """
+        List all image assets in the album.
+
+        Uses `/api/albums/<UUID>?key=...&withoutAssets=false` to get the
+        album metadata + full asset list in one call.
+        """
         if album_id is None:
-            album_id = await self.get_first_album_id()
-        info = await self.get_album_info(album_id)
-        assets_raw = info.get("assets", [])
+            album_id = await self.get_album_id()
+        data = await self._get(f"/api/albums/{album_id}",
+                               **{"withoutAssets": "false"})
+        assets_raw = data.get("assets", [])
         result: List[ImmichAsset] = []
         for a in assets_raw:
-            # Filter to images only (skip videos - Samsung Frame can show them
-            # but they're not part of the typical art rotation use case)
+            # Filter to images only - skip videos (not part of art rotation)
             if a.get("type") == "IMAGE" or a.get("isImage"):
                 result.append(ImmichAsset(
                     id=a["id"],

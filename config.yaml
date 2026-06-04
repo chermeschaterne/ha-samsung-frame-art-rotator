@@ -26,7 +26,7 @@ map:
   - addon_config:rw
 options:
   immich:
-    share_url: "https://immich.chanluto.de/share/nB7yPpVHisCg4hMHOdIuA1ZzWtku6bb5fdxW1_X6-EkSeVVqBOrCVDUyvYHpY40"
+    share_url: "https://immich.chanluto.de/share/gYC94PRExiJ62giSE0kWKvrCkjnXoFM0B2G4L6gGn4vmVYZ9ahq7szoYrcjgoY9_dQI"
   samsung_frame:
     host: "192.168.2.92"
     mac: "38:8c:ef:bb:b4:8c"
