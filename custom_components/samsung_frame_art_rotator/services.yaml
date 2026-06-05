@@ -9,3 +9,15 @@ wake:
 standby:
   name: Standby
   description: Disable art mode (panel off, but API stays responsive).
+
+set_rotation_time:
+  name: Set rotation time
+  description: Change the daily rotation time. Takes effect on the next scheduled rotation (the coordinator reloads the daily timer).
+  fields:
+    time:
+      name: Time
+      description: New daily rotation time in HH:MM (24-hour format).
+      required: true
+      example: "08:30"
+      selector:
+        time: {}

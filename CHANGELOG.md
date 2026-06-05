@@ -5,6 +5,35 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.7] - 2026-06-05
+
+### Changed
+- **`rotation_time` removed from the initial config flow.** Users had
+  asked for it not to be set statically when the integration is first
+  added. It's still configurable after setup via:
+  1. **Settings → Devices & Services → ⋮ → Configure** (Options Flow,
+     full form with the time picker)
+  2. The new `samsung_frame_art_rotator.set_rotation_time` service
+     (see below)
+  3. Direct `entry.options` editing (advanced)
+
+  Default is still `06:00` if the user never sets it.
+
+### Added
+- **Service `samsung_frame_art_rotator.set_rotation_time`** with a
+  `time` parameter (HH:MM, 24-hour). Updates the rotation time on all
+  loaded integration entries and triggers a coordinator reload (the
+  next scheduled rotation uses the new time). Useful from
+  **Developer Tools → Actions** for ad-hoc changes, or from
+  automations (e.g. "every Sunday, set rotation time to 09:00").
+  Example in YAML:
+  ```yaml
+  action:
+    - service: samsung_frame_art_rotator.set_rotation_time
+      data:
+        time: "08:30"
+  ```
+
 ## [1.0.6] - 2026-06-05
 
 ### Fixed

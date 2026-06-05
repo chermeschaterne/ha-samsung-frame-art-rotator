@@ -52,15 +52,10 @@ def _user_schema() -> vol.Schema:
             "modernwide_burgandy", "triptych_black", "squares_sage",
             "squares_seafoam",
         ]),
-        # Explicit time selector with a datetime.time default. Earlier
-        # `vol.Optional(key, default="06:00"): cv.time` (cv.time is just
-        # `str`) caused a 500 in some HA 2024.x builds because the
-        # frontend tried to render a time picker on a string default in
-        # a way the schema didn't match. Using selector() forces a
-        # proper time picker and using a `time` object default lets
-        # HA's frontend pre-fill the picker correctly.
-        vol.Optional(CONF_ROTATION_TIME, default=dt_time(6, 0, 0)
-                     ): selector({"time": {}}),
+        # NOTE: rotation_time is intentionally NOT in the user (initial)
+        # schema. The user sets it later via Configure, the
+        # samsung_frame_art_rotator.set_rotation_time service, or
+        # by editing entry.options. Default is 06:00.
     })
 
 
@@ -110,17 +105,6 @@ class SamsungFrameArtRotatorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN)
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
-            # Normalize rotation_time: the time selector returns a
-            # datetime.time object (or a "HH:MM[:SS]" string in some
-            # HA versions). Store as "HH:MM" string for consistency
-            # with the rest of the integration.
-            t = user_input.get(CONF_ROTATION_TIME)
-            if t is not None and hasattr(t, "strftime"):
-                t = t.strftime("%H:%M")
-            elif isinstance(t, str) and len(t) >= 5:
-                t = t[:5]
-            user_input[CONF_ROTATION_TIME] = t or DEFAULT_ROTATION_TIME
-
             try:
                 await _validate_immich(self.hass, user_input[CONF_IMMICH_SHARE_URL])
             except InvalidImmichShare:

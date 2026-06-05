@@ -9,8 +9,7 @@
           "frame_host": "IP-Adresse des Samsung Frame",
           "frame_mac": "MAC-Adresse des Samsung Frame (für Wake-on-LAN)",
           "client_name": "Stabiler Client-Identifier (nach erstem Connect nicht mehr ändern)",
-          "matte": "Rahmen-/Matte-Stil",
-          "rotation_time": "Tägliche Rotations-Uhrzeit (HH:MM)"
+          "matte": "Rahmen-/Matte-Stil"
         }
       }
     },

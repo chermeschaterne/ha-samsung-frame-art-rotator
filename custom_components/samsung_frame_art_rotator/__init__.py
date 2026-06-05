@@ -10,13 +10,16 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady
 
-from .const import DOMAIN, PLATFORMS
+from .const import CONF_ROTATION_TIME, DOMAIN, PLATFORMS
 from .coordinator import FrameArtCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# Service name constant — keep in sync with services.yaml
+SERVICE_SET_ROTATION_TIME = "set_rotation_time"
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -62,3 +65,56 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload the entry when options change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+def _normalize_time(value: object) -> str:
+    """Normalize the value passed to the set_rotation_time service to
+    a 'HH:MM' string. Accepts datetime.time objects (time selector
+    default in modern HA) and 'HH:MM' or 'HH:MM:SS' strings."""
+    if value is None:
+        raise ValueError("time value is required")
+    if hasattr(value, "strftime"):
+        return value.strftime("%H:%M")
+    if isinstance(value, str):
+        s = value.strip()
+        if len(s) >= 5 and s[2] == ":":
+            return s[:5]
+    raise ValueError(
+        f"Invalid time value: {value!r} (expected datetime.time or 'HH:MM[:SS]' string)"
+    )
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Register integration-level services.
+
+    Called once when HA loads the integration, even before any
+    config entry is set up. Safe to register services here.
+    """
+
+    async def _handle_set_rotation_time(call: ServiceCall) -> None:
+        try:
+            new_time = _normalize_time(call.data.get("time"))
+        except ValueError as e:
+            _LOGGER.error("set_rotation_time: %s", e)
+            return
+
+        target_entries = list(hass.config_entries.async_entries(DOMAIN))
+        if not target_entries:
+            _LOGGER.warning(
+                "set_rotation_time called but no %s entries are configured", DOMAIN
+            )
+            return
+
+        for entry in target_entries:
+            new_options = {**entry.options, CONF_ROTATION_TIME: new_time}
+            hass.config_entries.async_update_entry(entry, options=new_options)
+            _LOGGER.info(
+                "set_rotation_time: updated entry %s to %s", entry.entry_id, new_time
+            )
+        # If the entry is currently loaded, the update_listener
+        # (added in async_setup_entry) reloads it, which restarts the
+        # coordinator's daily timer with the new time. Unloaded
+        # entries pick up the new option on next load.
+
+    hass.services.async_register(DOMAIN, SERVICE_SET_ROTATION_TIME, _handle_set_rotation_time)
+    return True
