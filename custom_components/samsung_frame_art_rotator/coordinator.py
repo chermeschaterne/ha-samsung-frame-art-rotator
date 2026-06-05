@@ -96,7 +96,7 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
             "immich_share_url": data["immich_share_url"],
             "frame_host": data["frame_host"],
             "frame_mac": data["frame_mac"],
-            "client_name": data.get("client_name", "HermesFrame"),
+            "client_name": data.get("client_name", "FrameArtRotator"),
             "matte": data.get("matte", DEFAULT_MATTE),
             "enabled": options.get("enabled", True),
             "rotation_time": options.get("rotation_time", "06:00"),

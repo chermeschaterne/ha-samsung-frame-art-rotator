@@ -55,14 +55,14 @@ In Home Assistant:
    - **Immich share URL** — the full URL of the Immich public share
    - **Samsung Frame host** — the TV's IP address
    - **Samsung Frame MAC** — for Wake-on-LAN
-   - **Client name** — leave at `HermesFrame` (do not change after first use)
+   - **Client name** — leave at `FrameArtRotator` (do not change after first use)
    - **Matte** — frame style (default `none`)
 4. Click **Submit**
 
 ### 4. Authorize the TV
 
 The first time the integration connects to your Frame, the TV shows
-**"Allow connection from HermesFrame?"** — click **Allow** with the TV remote.
+**"Allow connection from FrameArtRotator?"** — click **Allow** with the TV remote.
 After that, the auth token is persisted in HA's storage and reconnects
 are automatic.
 

@@ -154,7 +154,7 @@ def resize_for_frame(input_bytes: bytes,
 class FrameClient:
     """High-level client for Samsung Frame art operations."""
 
-    def __init__(self, host: str, mac: str, client_name: str = "HermesFrame",
+    def __init__(self, host: str, mac: str, client_name: str = "FrameArtRotator",
                  matte: str = "none", token: Optional[str] = None,
                  port: int = 8002):
         self.host = host

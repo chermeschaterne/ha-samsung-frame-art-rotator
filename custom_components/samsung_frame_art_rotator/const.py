@@ -19,7 +19,7 @@ CONF_MOTION_SENSOR = "motion_sensor"
 CONF_MOTION_TIMEOUT = "motion_timeout_minutes"
 
 # Defaults
-DEFAULT_CLIENT_NAME = "HermesFrame"
+DEFAULT_CLIENT_NAME = "FrameArtRotator"
 DEFAULT_MATTE = "none"
 DEFAULT_BRIGHTNESS_LEVEL = 2
 DEFAULT_DISABLE_SENSOR = True
