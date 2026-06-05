@@ -28,6 +28,7 @@ from .const import (
     DEFAULT_DISABLE_SENSOR,
     DEFAULT_MATTE,
     DEFAULT_MOTION_TIMEOUT,
+    DEFAULT_ROTATION_TIME,
     DOMAIN,
 )
 from .immich_client import ImmichClient, ImmichError
@@ -49,6 +50,7 @@ def _user_schema() -> vol.Schema:
             "modernwide_burgandy", "triptych_black", "squares_sage",
             "squares_seafoam",
         ]),
+        vol.Optional(CONF_ROTATION_TIME, default=DEFAULT_ROTATION_TIME): cv.time,
     })
 
 
@@ -57,7 +59,7 @@ def _options_schema(defaults: dict | None = None) -> vol.Schema:
     return vol.Schema({
         vol.Optional("enabled", default=d.get("enabled", True)): cv.boolean,
         vol.Optional(CONF_ROTATION_TIME,
-                     default=d.get("rotation_time", "06:00")): cv.time,
+                     default=d.get("rotation_time", DEFAULT_ROTATION_TIME)): cv.time,
         vol.Optional(CONF_BRIGHTNESS_LEVEL,
                      default=d.get("brightness_level", DEFAULT_BRIGHTNESS_LEVEL)
                      ): vol.All(int, vol.Range(min=1, max=10)),
@@ -139,9 +141,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             user_input[CONF_ROTATION_TIME] = t or "06:00"
             return self.async_create_entry(title="", data=user_input)
 
-        current = self.config_entry.options
+        # Merge config-flow values (entry.data) under runtime overrides
+        # (entry.options), so the options form pre-fills with the
+        # rotation_time / brightness_level / etc. that the user originally
+        # set during the initial config flow.
+        current = {**self.config_entry.data, **self.config_entry.options}
         # Convert stored "HH:MM" to time object for the time selector
-        rot = current.get(CONF_ROTATION_TIME, "06:00")
+        rot = current.get(CONF_ROTATION_TIME, DEFAULT_ROTATION_TIME)
         hh, mm = rot.split(":")[:2]
         current[CONF_ROTATION_TIME] = f"{hh}:{mm}"
 

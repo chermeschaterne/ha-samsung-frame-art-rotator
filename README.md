@@ -57,6 +57,7 @@ In Home Assistant:
    - **Samsung Frame MAC** — for Wake-on-LAN
    - **Client name** — leave at `FrameArtRotator` (do not change after first use)
    - **Matte** — frame style (default `none`)
+   - **Rotation time** — daily HH:MM, default `06:00` (can be changed later in **Configure**)
 4. Click **Submit**
 
 ### 4. Authorize the TV

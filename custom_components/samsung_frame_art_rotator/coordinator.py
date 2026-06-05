@@ -42,6 +42,7 @@ from .const import (
     DEFAULT_DISABLE_SENSOR,
     DEFAULT_MATTE,
     DEFAULT_MOTION_TIMEOUT,
+    DEFAULT_ROTATION_TIME,
     DOMAIN,
     UPDATE_INTERVAL,
 )
@@ -120,7 +121,9 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
             "client_name": data.get("client_name", "FrameArtRotator"),
             "matte": data.get("matte", DEFAULT_MATTE),
             "enabled": options.get("enabled", True),
-            "rotation_time": options.get("rotation_time", "06:00"),
+            "rotation_time": options.get(
+                "rotation_time", data.get("rotation_time", DEFAULT_ROTATION_TIME)
+            ),
             "brightness_level": options.get("brightness_level", DEFAULT_BRIGHTNESS_LEVEL),
             "disable_sensor": options.get("disable_sensor", DEFAULT_DISABLE_SENSOR),
             "motion_sensor": options.get("motion_sensor", ""),

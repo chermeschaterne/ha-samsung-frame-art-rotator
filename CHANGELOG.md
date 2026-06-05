@@ -5,6 +5,26 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-06-05
+
+### Added
+- **`rotation_time` is now a config-flow field** (initial setup), not
+  only an options-flow field. Users who expected to set the daily
+  rotation time when first adding the integration no longer have to
+  dive into **Configure** afterwards. The default is `06:00`; set it
+  to whatever HH:MM you want.
+
+  Behavior unchanged for existing entries: the options flow still
+  takes precedence on every read, so values set there win. The options
+  form also now pre-fills with the value originally entered in the
+  config flow (was: fell back to the hardcoded `06:00`).
+
+### Changed
+- Added `DEFAULT_ROTATION_TIME = "06:00"` constant in `const.py`,
+  used as a single source of truth for the default in both flows.
+- Translated the German config-flow description in
+  `translations/de.json` (was accidentally still in English).
+
 ## [1.0.4] - 2026-06-05
 
 ### Fixed

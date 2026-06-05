@@ -24,6 +24,7 @@ DEFAULT_MATTE = "none"
 DEFAULT_BRIGHTNESS_LEVEL = 2
 DEFAULT_DISABLE_SENSOR = True
 DEFAULT_MOTION_TIMEOUT = 15
+DEFAULT_ROTATION_TIME = "06:00"
 
 # Polling interval for the DataUpdateCoordinator (state refresh)
 UPDATE_INTERVAL = timedelta(minutes=30)
