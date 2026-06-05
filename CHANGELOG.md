@@ -5,6 +5,30 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-06-05
+
+### Fixed
+- **Config flow crashed with 500** on the `+ Add Integration` path
+  after v1.0.5 added `rotation_time` to the user schema. Root cause:
+  `vol.Optional(key, default="06:00"): cv.time` (where `cv.time` is
+  just `str`) was being rendered as a time picker by the HA frontend
+  in a way that didn't match the string default, causing the form
+  load to fail. Fixed by using an explicit
+  `selector({"time": {}})` with a `datetime.time` object as the
+  default — the pattern used by recent HA core integrations (e.g.
+  `workday`).
+
+  The time selector returns a `datetime.time` object (or a
+  `"HH:MM[:SS]"` string in some HA versions). Both the user flow and
+  the options flow now normalize the result to a `"HH:MM"` string on
+  success, so the stored value format is consistent regardless of
+  HA version or selector behavior.
+
+### Changed
+- `_user_schema()` and `_options_schema()` for the `rotation_time`
+  field now use `selector({"time": {}})` + `dt_time(h, m, 0)` instead
+  of `cv.time` + string default. All other fields unchanged.
+
 ## [1.0.5] - 2026-06-05
 
 ### Added

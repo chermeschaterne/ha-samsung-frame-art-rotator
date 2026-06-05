@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import time as dt_time
 from typing import Any
 
 import voluptuous as vol
@@ -11,6 +12,7 @@ from homeassistant.config_entries import ConfigFlowResult
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import selector
 
 from .const import (
     CONF_BRIGHTNESS_LEVEL,
@@ -50,16 +52,30 @@ def _user_schema() -> vol.Schema:
             "modernwide_burgandy", "triptych_black", "squares_sage",
             "squares_seafoam",
         ]),
-        vol.Optional(CONF_ROTATION_TIME, default=DEFAULT_ROTATION_TIME): cv.time,
+        # Explicit time selector with a datetime.time default. Earlier
+        # `vol.Optional(key, default="06:00"): cv.time` (cv.time is just
+        # `str`) caused a 500 in some HA 2024.x builds because the
+        # frontend tried to render a time picker on a string default in
+        # a way the schema didn't match. Using selector() forces a
+        # proper time picker and using a `time` object default lets
+        # HA's frontend pre-fill the picker correctly.
+        vol.Optional(CONF_ROTATION_TIME, default=dt_time(6, 0, 0)
+                     ): selector({"time": {}}),
     })
 
 
 def _options_schema(defaults: dict | None = None) -> vol.Schema:
     d = defaults or {}
+    # The stored rotation_time is a "HH:MM" string. The time selector
+    # wants a `time` object as default. Convert.
+    rot_default = d.get("rotation_time", DEFAULT_ROTATION_TIME)
+    if isinstance(rot_default, str):
+        hh, mm = rot_default.split(":")[:2]
+        rot_default = dt_time(int(hh), int(mm), 0)
     return vol.Schema({
         vol.Optional("enabled", default=d.get("enabled", True)): cv.boolean,
-        vol.Optional(CONF_ROTATION_TIME,
-                     default=d.get("rotation_time", DEFAULT_ROTATION_TIME)): cv.time,
+        vol.Optional(CONF_ROTATION_TIME, default=rot_default
+                     ): selector({"time": {}}),
         vol.Optional(CONF_BRIGHTNESS_LEVEL,
                      default=d.get("brightness_level", DEFAULT_BRIGHTNESS_LEVEL)
                      ): vol.All(int, vol.Range(min=1, max=10)),
@@ -94,6 +110,17 @@ class SamsungFrameArtRotatorConfigFlow(config_entries.ConfigFlow, domain=DOMAIN)
     ) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         if user_input is not None:
+            # Normalize rotation_time: the time selector returns a
+            # datetime.time object (or a "HH:MM[:SS]" string in some
+            # HA versions). Store as "HH:MM" string for consistency
+            # with the rest of the integration.
+            t = user_input.get(CONF_ROTATION_TIME)
+            if t is not None and hasattr(t, "strftime"):
+                t = t.strftime("%H:%M")
+            elif isinstance(t, str) and len(t) >= 5:
+                t = t[:5]
+            user_input[CONF_ROTATION_TIME] = t or DEFAULT_ROTATION_TIME
+
             try:
                 await _validate_immich(self.hass, user_input[CONF_IMMICH_SHARE_URL])
             except InvalidImmichShare:
