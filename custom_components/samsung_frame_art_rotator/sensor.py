@@ -1,7 +1,7 @@
 """Sensor platform for Samsung Frame Art Rotator."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
@@ -88,8 +88,19 @@ class FrameArtSensor(CoordinatorEntity[FrameArtCoordinator], SensorEntity):
             if not s.last_rotation:
                 return None
             try:
-                return datetime.fromisoformat(s.last_rotation.rstrip("Z"))
-            except ValueError:
+                # Tolerate both formats: new "+00:00" suffix and old
+                # "Z" suffix (from state files written by <1.0.3).
+                # `fromisoformat` in Python 3.11+ accepts both directly.
+                raw = s.last_rotation
+                if raw.endswith("Z"):
+                    raw = raw[:-1] + "+00:00"
+                dt = datetime.fromisoformat(raw)
+                if dt.tzinfo is None:
+                    # Belt-and-suspenders: if anything produced a naive
+                    # datetime, treat it as UTC (the field is always UTC).
+                    dt = dt.replace(tzinfo=timezone.utc)
+                return dt
+            except (ValueError, TypeError):
                 return None
         if key == "last_rotation_status":
             return s.last_rotation_status or "unknown"

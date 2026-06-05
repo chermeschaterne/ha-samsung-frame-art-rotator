@@ -5,6 +5,24 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-06-05
+
+### Fixed
+- **Blocking I/O in `_save_token`**: was calling `p.write_text()` synchronously
+  inside the async `_async_update_data` (HA logged `Detected blocking call to
+  write_text`). Made `_save_token` / `_load_token` async, dispatching the
+  file I/O to a worker thread via `asyncio.to_thread`. Kept sync internal
+  helpers (`_sync_save_token` / `_sync_load_token`) for use from sync
+  contexts like `__init__`.
+- **Naive datetime crash on `last_rotation` sensor**: `state.py` was using
+  `datetime.utcnow().isoformat() + "Z"`, which after `.rstrip("Z")` in the
+  sensor became a naive datetime. HA's `timestamp` device_class sensor
+  requires a tz-aware value and raised
+  `ValueError: Invalid datetime: ... missing timezone information` on every
+  coordinator update. Switched to `datetime.now(timezone.utc).isoformat()`
+  (produces `+00:00` suffix, parses as tz-aware). Sensor now also tolerates
+  legacy `Z`-suffixed values and falls back to UTC for any naive datetime.
+
 ## [1.0.2] - 2026-06-05
 
 ### Fixed

@@ -15,7 +15,7 @@ import json
 import logging
 import threading
 from dataclasses import dataclass, field, asdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -124,7 +124,13 @@ class StateStore:
     def _sync_set_last_rotation(self, status: str,
                                 error: Optional[str]) -> None:
         with self._lock:
-            self._state.last_rotation = datetime.utcnow().isoformat() + "Z"
+            # Use timezone-aware UTC so `datetime.fromisoformat(...)` in
+            # the sensor layer returns a tz-aware datetime. HA's
+            # `timestamp` device_class sensor requires a timezone-aware
+            # value and rejects naive datetimes with ValueError.
+            # Note: `datetime.utcnow()` is deprecated in Python 3.12+
+            # and also produces a naive datetime — use now(timezone.utc).
+            self._state.last_rotation = datetime.now(timezone.utc).isoformat()
             self._state.last_rotation_status = status
             self._state.last_rotation_error = error
             self._sync_save()

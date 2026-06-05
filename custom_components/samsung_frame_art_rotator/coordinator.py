@@ -10,6 +10,7 @@ It also owns the daily rotation schedule (via `async_track_time_interval`).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import datetime, time, timedelta
 from pathlib import Path
@@ -85,7 +86,7 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
             mac=self.config["frame_mac"],
             client_name=self.config["client_name"],
             matte=self.config["matte"],
-            token=self._load_token(),
+            token=self._sync_load_token(),
         )
         self.engine = RotationEngine(self.config, self.state_store,
                                      self.frame, self.immich)
@@ -123,7 +124,8 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
             f".storage/{DOMAIN}/{self.entry.entry_id}_tv_token"
         ))
 
-    def _load_token(self) -> Optional[str]:
+    def _sync_load_token(self) -> Optional[str]:
+        """Sync token load — for use in sync contexts (e.g. __init__)."""
         p = self._token_path()
         if p.exists():
             try:
@@ -133,9 +135,12 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
                 _LOGGER.debug("Could not read token: %s", e)
         return None
 
-    def _save_token(self, token: str) -> None:
-        if not token:
-            return
+    async def _load_token(self) -> Optional[str]:
+        """Async token load — dispatches file I/O to a worker thread."""
+        return await asyncio.to_thread(self._sync_load_token)
+
+    def _sync_save_token(self, token: str) -> None:
+        """Sync token write — for use in sync contexts."""
         p = self._token_path()
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(token)
@@ -143,7 +148,18 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
             p.chmod(0o600)
         except OSError:
             pass
+
+    async def _save_token(self, token: str) -> None:
+        """Async token write — dispatches file I/O to a worker thread.
+
+        Sets the in-memory `self.frame.token` first (so the change is
+        immediately visible to subsequent reads), then persists the
+        token to disk in a worker thread.
+        """
+        if not token:
+            return
         self.frame.token = token
+        await asyncio.to_thread(self._sync_save_token, token)
 
     async def _async_update_data(self) -> State:
         """Fetch the latest album size + cache state.
@@ -158,8 +174,9 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
             raise UpdateFailed(f"Album refresh failed: {err}") from err
 
         # If the frame connection established a new token, persist it
-        if self.frame.token and self.frame.token != self._load_token():
-            self._save_token(self.frame.token)
+        current_on_disk = await self._load_token()
+        if self.frame.token and self.frame.token != current_on_disk:
+            await self._save_token(self.frame.token)
 
         return self.state_store.state
 
@@ -256,7 +273,3 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
     @property
     def motion_standby(self) -> bool:
         return self._motion_standby
-
-
-# asyncio is imported lazily inside methods to keep module init cheap
-import asyncio  # noqa: E402
