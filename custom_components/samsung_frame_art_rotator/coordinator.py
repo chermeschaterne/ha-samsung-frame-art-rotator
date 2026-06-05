@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, time, timedelta
+from pathlib import Path
 from typing import Any, Optional
 
 from homeassistant.config_entries import ConfigEntry
@@ -60,10 +61,13 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
         self.entry = entry
         self.config = self._resolve_config(entry)
 
-        # State store lives in the HA config dir under .storage/
-        state_path = hass.config.path(
+        # State store lives in the HA config dir under .storage/.
+        # `hass.config.path()` returns str in HA 2024.4+, so wrap in Path()
+        # before handing to StateStore (which calls `.exists()`, `.read_text()`,
+        # `.with_suffix()` etc.).
+        state_path = Path(hass.config.path(
             f".storage/{DOMAIN}/{entry.entry_id}_state.json"
-        )
+        ))
         self.state_store = StateStore(state_path)
         self._state_path = state_path
 
@@ -107,10 +111,13 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
                                                    DEFAULT_MOTION_TIMEOUT),
         }
 
-    def _token_path(self):
-        return self.hass.config.path(
+    def _token_path(self) -> Path:
+        # `hass.config.path()` returns str in HA 2024.4+ — wrap in Path()
+        # because `_load_token` / `_save_token` call Path-only methods
+        # (`.exists()`, `.read_text()`, `.write_text()`, `.parent.mkdir()`).
+        return Path(self.hass.config.path(
             f".storage/{DOMAIN}/{self.entry.entry_id}_tv_token"
-        )
+        ))
 
     def _load_token(self) -> Optional[str]:
         p = self._token_path()

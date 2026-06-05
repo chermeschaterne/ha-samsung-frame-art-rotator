@@ -49,8 +49,11 @@ class State:
 class StateStore:
     """Thread-safe state persistence in the HA config dir."""
 
-    def __init__(self, path: Path):
-        self._path = path
+    def __init__(self, path: Path | str):
+        # Accept str or Path defensively — `hass.config.path()` returns
+        # str in HA 2024.4+ but Path in earlier versions. Normalize here
+        # so callers don't have to remember to wrap.
+        self._path = Path(path)
         self._lock = threading.RLock()
         self._state = self._load()
 
