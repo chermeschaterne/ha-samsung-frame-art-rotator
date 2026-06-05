@@ -23,6 +23,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Samsung Frame Art Rotator from a config entry."""
     coordinator = FrameArtCoordinator(hass, entry)
 
+    # Async one-time init: load state.json + saved TV token from disk.
+    # Must happen BEFORE the first refresh, but AFTER constructor.
+    try:
+        await coordinator.async_load_initial_state()
+    except Exception as e:  # noqa: BLE001
+        _LOGGER.warning("Initial state load failed (will retry in background): %s", e)
+        # Don't fail entry setup - entities will be "unavailable" until next update
+
     # First refresh: validate the Immich share URL is reachable.
     try:
         await coordinator.async_config_entry_first_refresh()

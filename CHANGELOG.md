@@ -5,6 +5,29 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-06-05
+
+### Fixed
+- **Blocking I/O in `__init__` of StateStore and FrameArtCoordinator**.
+  Even though `_load()` / `_sync_load_token()` were sync-internal helpers,
+  they were called from `__init__()`, which itself runs inside the HA
+  event loop (called from `async_setup_entry`). HA logged
+  `Detected blocking call to read_text` on every entry setup.
+
+  Restructured the init flow:
+  - `StateStore.__init__` no longer touches disk — defaults to an
+    empty `State()`. Added `async load()` that dispatches the disk
+    read to a worker thread.
+  - `FrameArtCoordinator.__init__` no longer reads the saved TV token —
+    constructs `FrameClient(token=None)`. Added
+    `async async_load_initial_state()` that loads both state.json and
+    the token in worker threads and sets `self.frame.token`.
+  - `__init__.py`'s `async_setup_entry` now calls
+    `await coordinator.async_load_initial_state()` between construction
+    and the first coordinator refresh.
+
+  Net effect: zero file I/O happens in the synchronous init path.
+
 ## [1.0.3] - 2026-06-05
 
 ### Fixed

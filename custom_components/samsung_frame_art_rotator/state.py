@@ -62,13 +62,16 @@ class StateStore:
         # Accept str or Path defensively — `hass.config.path()` returns
         # str in HA 2024.4+ but Path in earlier versions. Normalize here
         # so callers don't have to remember to wrap.
+        # NO file I/O here — `__init__` runs inside the HA event loop
+        # when called from `async_setup_entry`. The caller must
+        # `await state_store.load()` explicitly after construction.
         self._path = Path(path)
         self._lock = threading.RLock()
-        self._state = self._load()
+        self._state = State()  # default; populated by `await load()`
 
     # --- sync I/O (always called via asyncio.to_thread) ---
 
-    def _load(self) -> State:
+    def _sync_load(self) -> State:
         if self._path.exists():
             try:
                 data = json.loads(self._path.read_text())
@@ -136,6 +139,20 @@ class StateStore:
             self._sync_save()
 
     # --- async public API (dispatch to thread) ---
+
+    async def load(self) -> None:
+        """Load state from disk in a worker thread.
+
+        Must be awaited once after construction (typically from
+        `async_setup_entry`). After this returns, `state` is safe
+        to read sync; all writes go through `save()` which dispatches
+        to a thread.
+        """
+        try:
+            self._state = await asyncio.to_thread(self._sync_load)
+        except OSError as e:
+            _LOGGER.warning("Failed to read state file: %s", e)
+            self._state = State()
 
     async def save(self) -> None:
         """Persist current state to disk in a worker thread."""

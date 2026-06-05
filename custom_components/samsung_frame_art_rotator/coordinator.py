@@ -66,10 +66,10 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
         self.entry = entry
         self.config = self._resolve_config(entry)
 
-        # State store lives in the HA config dir under .storage/.
-        # `hass.config.path()` returns str in HA 2024.4+, so wrap in Path()
-        # before handing to StateStore (which calls `.exists()`, `.read_text()`,
-        # `.with_suffix()` etc.).
+        # NO file I/O in __init__ — even the sync `_sync_load_token()` call
+        # below would block the event loop, because `__init__` runs inside
+        # the async setup path. Token is loaded later via
+        # `await async_load_initial_state()` from `async_setup_entry`.
         state_path = Path(hass.config.path(
             f".storage/{DOMAIN}/{entry.entry_id}_state.json"
         ))
@@ -79,14 +79,16 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
         # aiohttp session shared by Immich + (optionally) HA motion polling
         self.session = async_get_clientsession(hass)
 
-        # Build clients
+        # Build clients. FrameClient starts with token=None; the real
+        # token (if any) is loaded from disk and set on the client in
+        # `async_load_initial_state()` below.
         self.immich = ImmichClient(self.config["immich_share_url"], self.session)
         self.frame = FrameClient(
             host=self.config["frame_host"],
             mac=self.config["frame_mac"],
             client_name=self.config["client_name"],
             matte=self.config["matte"],
-            token=self._sync_load_token(),
+            token=None,
         )
         self.engine = RotationEngine(self.config, self.state_store,
                                      self.frame, self.immich)
@@ -95,6 +97,16 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
         self._unsub_motion = None
         self._motion_standby = False
         self._next_rotation: Optional[datetime] = None
+
+    async def async_load_initial_state(self) -> None:
+        """Async one-time init: load state.json and the saved TV token.
+
+        Must be awaited exactly once from `async_setup_entry` BEFORE
+        `async_config_entry_first_refresh()`. Performs all disk I/O
+        in worker threads so the HA event loop is never blocked.
+        """
+        await self.state_store.load()
+        self.frame.token = await self._load_token()
 
     @staticmethod
     def _resolve_config(entry: ConfigEntry) -> dict:

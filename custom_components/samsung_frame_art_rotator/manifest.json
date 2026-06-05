@@ -1,7 +1,7 @@
 {
   "domain": "samsung_frame_art_rotator",
   "name": "Samsung Frame Art Rotator",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "documentation": "https://github.com/chermeschaterne/ha-samsung-frame-art-rotator",
   "issue_tracker": "https://github.com/chermeschaterne/ha-samsung-frame-art-rotator/issues",
   "codeowners": ["@chermeschaterne"],
