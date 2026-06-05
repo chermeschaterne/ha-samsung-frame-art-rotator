@@ -18,6 +18,10 @@ from typing import Any, Optional
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_time_change,
+)
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -161,10 +165,11 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
 
     async def async_start_listeners(self) -> None:
         """Start the daily-rotation timer and optional motion listener."""
-        # Daily rotation
+        # Daily rotation. `hass.helpers.event.*` was removed in modern HA
+        # — call the helpers directly via the imported functions.
         if self.config["enabled"]:
             hh, mm = self.config["rotation_time"].split(":")
-            self._unsub_daily = self.hass.helpers.event.async_track_time_change(
+            self._unsub_daily = async_track_time_change(
                 self.hass,
                 self._handle_scheduled_rotation,
                 hour=int(hh),
@@ -176,7 +181,7 @@ class FrameArtCoordinator(DataUpdateCoordinator[State]):
         # Optional motion sensor
         motion_entity = self.config.get("motion_sensor", "")
         if motion_entity:
-            self._unsub_motion = self.hass.helpers.event.async_track_state_change_event(
+            self._unsub_motion = async_track_state_change_event(
                 self.hass,
                 [motion_entity],
                 self._handle_motion_change,

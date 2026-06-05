@@ -40,7 +40,7 @@ class RotationEngine:
         """Fetch the current album contents from Immich. Returns # of assets."""
         assets = await self._immich.list_assets()
         asset_ids = [a.id for a in assets]
-        self._state.update_assets(asset_ids)
+        await self._state.update_assets(asset_ids)
         return len(asset_ids)
 
     async def run_rotation(self, force: bool = False) -> dict:
@@ -59,23 +59,23 @@ class RotationEngine:
             _LOGGER.error("Album refresh failed: %s", e)
             result["status"] = "error"
             result["error"] = f"album_refresh: {e}"
-            self._state.set_last_rotation("error", str(e))
+            await self._state.set_last_rotation("error", str(e))
             return result
 
         if n == 0:
             result["status"] = "skipped"
             result["reason"] = "empty album"
-            self._state.set_last_rotation("skipped", "empty album")
+            await self._state.set_last_rotation("skipped", "empty album")
             return result
 
         if not force:
-            self._state.advance()
+            await self._state.advance()
 
         asset_id = self._state.current_asset_id()
         if not asset_id:
             result["status"] = "error"
             result["error"] = "no current asset"
-            self._state.set_last_rotation("error", "no current asset")
+            await self._state.set_last_rotation("error", "no current asset")
             return result
 
         result["immich_id"] = asset_id
@@ -86,13 +86,13 @@ class RotationEngine:
             _LOGGER.error("Frame connect failed: %s", e)
             result["status"] = "error"
             result["error"] = f"frame_connect: {e}"
-            self._state.set_last_rotation("error", str(e))
+            await self._state.set_last_rotation("error", str(e))
             return result
 
         if not connected:
             result["status"] = "error"
             result["error"] = "frame unreachable (WoL did not help)"
-            self._state.set_last_rotation("error", result["error"])
+            await self._state.set_last_rotation("error", result["error"])
             return result
 
         try:
@@ -109,17 +109,17 @@ class RotationEngine:
                     _LOGGER.error("Immich download failed: %s", e)
                     result["status"] = "error"
                     result["error"] = f"download: {e}"
-                    self._state.set_last_rotation("error", str(e))
+                    await self._state.set_last_rotation("error", str(e))
                     return result
 
                 content_id = await self._frame.upload(img_bytes)
                 if not content_id:
                     result["status"] = "error"
                     result["error"] = "upload returned no content_id"
-                    self._state.set_last_rotation("error", result["error"])
+                    await self._state.set_last_rotation("error", result["error"])
                     return result
 
-                self._state.mark_uploaded(asset_id, content_id)
+                await self._state.mark_uploaded(asset_id, content_id)
                 result["content_id"] = content_id
                 result["action"] = "upload_and_select"
 
@@ -127,12 +127,12 @@ class RotationEngine:
             if not ok:
                 result["status"] = "error"
                 result["error"] = "select_image failed"
-                self._state.set_last_rotation("error", result["error"])
+                await self._state.set_last_rotation("error", result["error"])
                 return result
 
             await self._frame.set_brightness(self.brightness_level)
 
-            self._state.set_last_rotation("ok")
+            await self._state.set_last_rotation("ok")
             result["status"] = "ok"
             return result
 

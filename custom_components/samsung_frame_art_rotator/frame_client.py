@@ -231,6 +231,19 @@ class FrameClient:
             _LOGGER.error("Failed to obtain art handle: %s", e)
             return False
 
+        # On 2023+ Frame models the WebSocket layer occasionally returns
+        # `None` from `tv.art()` instead of raising, when the connection
+        # is half-open (typical after Tizen state pollution from prior
+        # debugging). Treat it as a failed connect so callers get a
+        # clean False instead of a NoneType AttributeError later.
+        if self._art is None:
+            _LOGGER.error(
+                "Failed to obtain art handle (tv.art() returned None) — "
+                "TV WebSocket state may be polluted. Try a hard power "
+                "reset of the Frame (unplug 3 min) and reload."
+            )
+            return False
+
         if self._tv.token and self._tv.token != self._token:
             self._token = self._tv.token
         return True

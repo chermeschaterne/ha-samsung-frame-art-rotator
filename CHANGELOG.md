@@ -5,6 +5,23 @@ All notable changes to this integration are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-06-05
+
+### Fixed
+- **Setup crash**: `AttributeError: 'HomeAssistant' object has no attribute 'helpers'`.
+  `hass.helpers.event.*` was removed in modern HA — now using
+  `async_track_time_change` and `async_track_state_change_event` imported
+  directly from `homeassistant.helpers.event`.
+- **Blocking I/O in event loop**: `state.py` was calling `tmp.write_text()`
+  and `tmp.replace()` synchronously inside async methods, which made HA
+  log `Detected blocking call to write_text`. Converted all StateStore
+  mutation methods to async, dispatching the actual file I/O to a
+  worker thread via `asyncio.to_thread`.
+- **NoneType errors on Frame connect**: `tv.art()` can return `None`
+  instead of raising on 2023+ Frame models with polluted WebSocket
+  state. `FrameClient.connect()` now treats this as a failed connect
+  and logs a hint about hard-resetting the TV (unplug 3 min).
+
 ## [1.0.1] - 2026-06-05
 
 ### Fixed
